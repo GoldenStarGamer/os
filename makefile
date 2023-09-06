@@ -1,6 +1,13 @@
 ASM = nasm
 
-.PHONY = floppyimage kernel bootloader
+.PHONY = floppyimage kernel bootloader everything
+
+goldos: everything
+	qemu-system-i386 -fda build/goldos.img
+
+norun: everything
+
+everything: floppyimage kernel bootloader
 
 floppyimage: build/goldos.img
 
@@ -18,7 +25,4 @@ build/bootloader.bin: bootloader/bootloader.asm
 kernel: build/kernel.bin
 
 build/kernel.bin:
-	$(ASM) kernel/kernel.asm
-
-run: build/bootloader.img
-	qemu-system-i386 -fda build/goldos.img
+	$(ASM) kernel/kernel.asm -fbin -obuild/kernel.bin

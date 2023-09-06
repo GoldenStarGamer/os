@@ -6,7 +6,7 @@ bits 16 ;16bit real mode
 jmp short start ;go back to your place bitch
 nop
 
-# FAT12 HEADER
+; FAT12 HEADER
 
 bdb_oem: db "MSWIN4.1"
 bdb_bytespsector: dw 512
@@ -22,7 +22,7 @@ bdb_heads: dw 2
 bdb_hiddensectors: dd 0
 bdb_largesectors: dd 0
 
-# EBR SECTION
+; EBR SECTION
 
 ebr_drivenumber: db 0
 ebr_uselesswindowsshit: db 0
@@ -31,7 +31,7 @@ ebr_id: db 0x12, 0x34, 0x56, 0x78
 ebr_label: db "GOLD OS    "
 ebr_systemid: db "FAT12   lodsb"
 
-# END OF HEADER
+; END OF HEADER
 
 start:
 	jmp main ;go to the main function, not talk
