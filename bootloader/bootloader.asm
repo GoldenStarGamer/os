@@ -100,8 +100,6 @@ halt:
 	call talk ;print the message
 	call shutdown ;shutdown
 
-
-
 str_hello: db "Do u hav som ppsi", endl, 0
 
 str_escfound: db "Esc found, shutdown attempted", endl, 0
