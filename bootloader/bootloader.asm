@@ -100,9 +100,10 @@ halt:
 	call talk ;print the message
 	call shutdown ;shutdown
 
-str_hello: db "Do u hav som ppsi", endl, 0
+str_hello: db "Do u hav som ppsi", endl, 0 ;do you?
 
-str_escfound: db "Esc found, shutdown attempted", endl, 0
+str_escfound: db "Esc found, shutdown attempted", endl, 0 ;usually you wpn't see this from how fast it shuts down,
+														  ;this is only for debugging purposes
 
 times 510-($-$$) db 0 ;nullify the rest of the 512 bytes we can use
 dw 0AA55h ;bootloader signature

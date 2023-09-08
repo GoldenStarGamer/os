@@ -19,10 +19,13 @@ build/goldos.img: bootloader kernel
 
 bootloader: build/bootloader.bin
 
-build/bootloader.bin: bootloader/bootloader.asm
+build/bootloader.bin: bootloader/bootloader.asm | build
 	$(ASM) bootloader/bootloader.asm -fbin -obuild/bootloader.bin
 
 kernel: build/kernel.bin
 
-build/kernel.bin:
+build/kernel.bin: | build
 	$(ASM) kernel/kernel.asm -fbin -obuild/kernel.bin
+
+build:
+	mkdir build

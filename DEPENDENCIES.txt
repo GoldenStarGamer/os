@@ -1,0 +1,1 @@
+nasm make dosfstools mtools qemu-system -y
