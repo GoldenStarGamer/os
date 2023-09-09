@@ -3,7 +3,8 @@ bits 16 ;16bit real mode
 
 %define endl 0Dh, 0Ah
 
-jmp setup ;go back to your place bitch
+jmp strict short setup ;go back to your place bitch
+nop
 
 ; FAT12 HEADER
 
@@ -118,7 +119,6 @@ disk_lba_chs_conversion:
 
 floppy_error:
 	mov si, ferror_read_failed
-	call talk
 	call fatal_reboot
 
 ;reads the disk
@@ -142,10 +142,10 @@ disk_read:
     pusha                               ; save all registers, we don't know what bios modifies
     stc                                 ; set carry flag, some BIOS'es don't set it
     int 13h                             ; carry flag cleared = success
+    popa
     jnc .done                           ; jump if carry not set
 
     ; read failed
-    popa
     call disk_reset
 
     dec di
@@ -286,7 +286,6 @@ kernel_find:
 	jmp KERNEL_LOAD_SEGMENT:KERNEL_LOAD_OFFSET ;goodbye
 
 	mov si, ferror_kernel_jump_failed
-	call talk
 	call fatal_reboot
 		
 	ret
@@ -303,15 +302,17 @@ ferror_kernel_jump_failed: db "FATAL ERROR: Jump to Kernel Failed"
 ; MISC AREA
 
 ;reboots in case of fatal error
+;PARAMS: si - error string
 fatal_reboot:
+	call talk ;here just to gain a little bit of space
 	;BIOS INTERRUPT, SEE RESOURCES.md
 	mov ah, 0 ;wait for keypress
 	int 16h ;INTERRUPT KEYBOARD SERVICE
 	jmp reboot
 	ret
 
-buffer: ;label to unused bootloader space, protected from stack, sure, it can overwrite the signature, but at that time it's already useless
 
 times 510-($-$$) db 0 ;nullify the rest of the 512 bytes we can use
 dw 0AA55h ;bootloader signature, DO NOT TOUCH, DON'T EVEN THINK ABOUT IT.
 ;everything beyond this point will not be protected and can be overwritten by the stack, write at your own risk.
+buffer: ;label to unused space

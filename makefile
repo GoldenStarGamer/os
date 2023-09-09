@@ -5,6 +5,9 @@ ASM = nasm
 goldos: everything
 	qemu-system-i386 -fda build/goldos.img
 
+debug: everything
+	qemu-system-i386 -fda build/goldos.img -boot a -s -S
+
 norun: everything
 
 everything: floppyimage kernel bootloader build
