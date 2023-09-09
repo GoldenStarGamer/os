@@ -3,8 +3,7 @@ bits 16 ;16bit real mode
 
 %define endl 0Dh, 0Ah
 
-jmp short start ;go back to your place bitch
-nop
+jmp setup ;go back to your place bitch
 
 ; FAT12 HEADER
 
@@ -23,6 +22,7 @@ bdb_hidden_sectors:         dd 0
 bdb_large_sector_count:     dd 0
 
 ; EBR SECTION
+
 ebr_drive_number:           db 0                    ; 0x00 floppy, 0x80 hdd, useless
 ebr_useless:	            db 0                    ; reserved, windows stuff, i guess
 ebr_signature:              db 29h
@@ -33,9 +33,6 @@ ebr_system_id:              db 'FAT12   '           ; 8 bytes          db 'FAT12
 ; END OF HEADER
 
 ;MAIN AREA
-
-start:
-	jmp setup ;go to the main function, not talk
 
 ;setup registers and stack
 setup:
@@ -51,7 +48,7 @@ setup:
 	;set disk number
 	mov [ebr_drive_number], dl
 
-	jmp main
+	jmp kernel_find
 
 ;says shit
 ;PARAMS: si - String to print.
@@ -79,46 +76,7 @@ talk:
 
 ;reboot function
 reboot:
-	jmp 0FFFFh:0 ;jump to beginning of bios, 
-
-;shutdown function
-shutdown:
-	mov ax, 0x1
-	mov ss, ax
-	mov sp, 0xf
-	mov ax, 0x5307
-	mov bx, 0x1
-	mov cx, 0x3
-	int 15h
-	ret
-
-;main function
-main:
-	;disk read test
-	mov ax, 1 ;second sector of disk, like c arrays, they start at 0.
-	mov cl, 1 ;read 1 sector
-	mov bx, 7E00h ;store at that address
-	call disk_read 
-
-	mov si, str_hello ;set string to write
-	call talk ;print
-
-	call halt ;halt until esc key pressed
-
-;check for the esc key
-halt:
-	hlt
-	;BIOS INTERRUPT, SEE RESOURCES.md
-	mov ah, 0 ;Check keyboard input
-    int 16h ;INTERRUPT KEYBOARD SERVICE
-
-    ;AH will contain the scan code of the pressed key
-    cmp ah, 1h ;esc key in pt keyboard
-    jne halt ;if not equal, continue checking
-
-	mov si, str_escfound ; say that it found the esc key, just debugging, usually the user can't see it
-	call talk ;print the message
-	call shutdown ;shutdown
+	jmp 0FFFFh:0 ;jump to beginning of bios
 
 ;DISK AREA
 
@@ -159,12 +117,9 @@ disk_lba_chs_conversion:
 
 
 floppy_error:
-	mov si, str_read_failed
+	mov si, ferror_read_failed
 	call talk
-	;BIOS INTERRUPT, SEE RESOURCES.md
-	mov ah, 0 ;wait for keypress
-	int 16h
-	jmp reboot
+	call fatal_reboot
 
 ;reads the disk
 ;PARAMS: ax - LBA Address.
@@ -174,11 +129,7 @@ floppy_error:
 ;RETURNS: (relative) - data read.
 disk_read:
 
-    push ax                             ; save registers we will modify
-    push bx
-    push cx
-    push dx
-    push di
+    pusha                        ; save registers we will modify
 
     push cx                             ; temporarily save CL (number of sectors to read)
     call disk_lba_chs_conversion                   ; compute CHS
@@ -206,15 +157,7 @@ disk_read:
     jmp floppy_error
 
 .done:
-	mov si, str_read_success
-	call talk
-    popa
-
-    pop di
-    pop dx
-    pop cx
-    pop bx
-    pop ax                             ; restore registers modified
+	popa                           ; restore registers
     ret
 
 disk_reset:
@@ -226,16 +169,149 @@ disk_reset:
     popa
     ret
 
+;KERNEL LOAD AREA
+
+KERNEL_LOAD_SEGMENT equ 0x2000
+KERNEL_LOAD_OFFSET equ 0
+
+kernel_cluster: dw 0
+
+;just gets the size of the root directory
+kernel_find:
+
+	;get root directory address
+	mov ax, [bdb_sectors_per_fat]
+	mov bl, [bdb_fat_count]
+	xor bh, bh
+	mul bx
+	add ax, [bdb_reserved_sectors]
+	push ax
+
+	;get size of root directory
+	mov ax, [bdb_sectors_per_fat]
+	shl ax, 5
+	xor dx, dx
+	div word [bdb_bytes_per_sector]
+	test dx, dx
+	jz .rdsdone
+	inc ax
+	.rdsdone:
+
+	;read root diretory
+	mov cl, al
+	pop ax
+	mov dl, [ebr_drive_number]
+	mov bx, buffer
+	call disk_read
+
+
+	;find the kernel
+	xor bx, bx
+	mov di, buffer
+
+	.kernelsearch:
+	mov si, file_kernel
+	mov cx, 11
+	push di
+	repe cmpsb
+	pop di
+	je .kernelfound
+
+	add di, 32
+	inc bx
+	cmp bx, [bdb_dir_entries_count]
+	jl .kernelsearch
+	mov si, ferror_no_kernel
+	call talk
+	call fatal_reboot
+
+	.kernelfound:
+	mov ax, [di + 26]
+	mov [kernel_cluster], ax
+
+	;get stuff from disk
+	mov ax, [bdb_reserved_sectors]
+	mov bx, buffer
+	mov cl, [bdb_sectors_per_fat]
+	mov dl, [ebr_drive_number]
+	call disk_read
+
+	mov bx, KERNEL_LOAD_SEGMENT
+	mov es, bx
+	mov bx, KERNEL_LOAD_OFFSET
+
+	.kernelload:
+	mov ax, [kernel_cluster]
+
+	;awfull shit, only safe in floppy disk
+	add ax, 31
+
+	mov cl, 1
+	mov dl, [ebr_drive_number]
+	call disk_read
+
+	add bx, [bdb_bytes_per_sector] ;awfull shit, will overflow if kernel above 64kb, will overwrite if it happens
+
+	mov ax, [kernel_cluster]
+	mov cx, 3
+	mul cx
+	mov cx, 2
+	div cx
+
+	mov si, buffer
+	add si, ax
+	mov ax, [ds:si]
+
+	or dx, dx
+	jz .even
+
+	.odd:
+	shr ax, 4
+	jmp .continue
+
+	.even:
+	and ax, 0x0FFF
+
+	.continue: ;didn't have a better name
+	cmp ax, 0x0FF8
+	jae .finishreading 
+
+	mov [kernel_cluster], ax
+	jmp .kernelload
+
+	.finishreading: ;time to go to bed, hehe
+	mov dl, [ebr_drive_number]
+	mov ax, KERNEL_LOAD_SEGMENT
+
+	jmp KERNEL_LOAD_SEGMENT:KERNEL_LOAD_OFFSET ;goodbye
+
+	mov si, ferror_kernel_jump_failed
+	call talk
+	call fatal_reboot
+		
+	ret
 ;STRING AREA
 
-str_hello: db "do u hav som ppsi", endl, 0 ;do you?
+file_kernel: db "KERNEL  BIN"
 
-str_read_failed: db "ERROR: Disk read operation Failed", endl, 0 ;message for when it can't read the disk.
+ferror_no_kernel: db "FATAL ERROR: Kernel Not Found", endl, 0
 
-str_read_success: db "Read Operation Success", endl, 0
+ferror_read_failed: db "FATAL ERROR: Disk read operation Failed", endl, 0 ;message for when it can't read the disk.
 
-str_escfound: db "Esc found, shutdown attempted", endl, 0 ;usually you won't see this from how fast it shuts down,
-														  ;this is only for debugging purposes
+ferror_kernel_jump_failed: db "FATAL ERROR: Jump to Kernel Failed"
+
+; MISC AREA
+
+;reboots in case of fatal error
+fatal_reboot:
+	;BIOS INTERRUPT, SEE RESOURCES.md
+	mov ah, 0 ;wait for keypress
+	int 16h ;INTERRUPT KEYBOARD SERVICE
+	jmp reboot
+	ret
+
+buffer: ;label to unused bootloader space, protected from stack, sure, it can overwrite the signature, but at that time it's already useless
 
 times 510-($-$$) db 0 ;nullify the rest of the 512 bytes we can use
 dw 0AA55h ;bootloader signature, DO NOT TOUCH, DON'T EVEN THINK ABOUT IT.
+;everything beyond this point will not be protected and can be overwritten by the stack, write at your own risk.
