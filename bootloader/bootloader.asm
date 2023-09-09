@@ -24,7 +24,7 @@ bdb_large_sector_count:     dd 0
 
 ; EBR SECTION
 ebr_drive_number:           db 0                    ; 0x00 floppy, 0x80 hdd, useless
-                            db 0                    ; reserved
+ebr_useless:	            db 0                    ; reserved
 ebr_signature:              db 29h
 ebr_volume_id:              db 12h, 34h, 56h, 78h   ; serial number, value doesn't matter
 ebr_volume_label:           db 'GOLD OS    '        ; 11 bytes, padded with spaces
