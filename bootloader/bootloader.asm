@@ -23,13 +23,12 @@ bdb_hidden_sectors:         dd 0
 bdb_large_sector_count:     dd 0
 
 ; EBR SECTION
-
 ebr_drive_number:           db 0                    ; 0x00 floppy, 0x80 hdd, useless
-ebr_useless:			    db 0                    ; reserved
+                            db 0                    ; reserved
 ebr_signature:              db 29h
 ebr_volume_id:              db 12h, 34h, 56h, 78h   ; serial number, value doesn't matter
 ebr_volume_label:           db 'GOLD OS    '        ; 11 bytes, padded with spaces
-ebr_system_id:              db 'FAT12   '           ; 8 bytes
+ebr_system_id:              db 'FAT12   '           ; 8 bytes          db 'FAT12   '           ; 8 bytes
 
 ; END OF HEADER
 
@@ -100,7 +99,7 @@ halt:
 	call talk ;print the message
 	call shutdown ;shutdown
 
-str_hello: db "Do u hav som ppsi", endl, 0 ;do you?
+str_hello: db "do u hav som ppsi", endl, 0 ;do you?
 
 str_escfound: db "Esc found, shutdown attempted", endl, 0 ;usually you wpn't see this from how fast it shuts down,
 														  ;this is only for debugging purposes
