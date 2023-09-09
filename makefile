@@ -11,7 +11,7 @@ everything: floppyimage kernel bootloader build
 
 floppyimage: build/goldos.img
 
-build/goldos.img: bootloader kernel
+build/goldos.img: build bootloader kernel
 	dd if=/dev/zero of=build/goldos.img bs=512 count=2880
 	mkfs.fat -F 12 -n "GOLDOS" build/goldos.img
 	dd if=build/bootloader.bin of=build/goldos.img conv=notrunc
@@ -19,13 +19,16 @@ build/goldos.img: bootloader kernel
 
 bootloader: build/bootloader.bin
 
-build/bootloader.bin: bootloader/bootloader.asm
+build/bootloader.bin: build bootloader/bootloader.asm
 	$(ASM) bootloader/bootloader.asm -fbin -obuild/bootloader.bin
 
 kernel: build/kernel.bin
 
-build/kernel.bin: kernel/kernel.asm
+build/kernel.bin: build kernel/kernel.asm
 	$(ASM) kernel/kernel.asm -fbin -obuild/kernel.bin
+
+clean:
+	rm -r build
 
 build:
 	mkdir -p build
