@@ -1,2 +1,2 @@
 [BIOS Interrupts](https://stanislavs.org/helppc/int_table.html)  
-[Tech Help](https://techhelpmanual.com)
+[Tech Help](http://www.techhelpmanual.com/2-main_menu.html)
